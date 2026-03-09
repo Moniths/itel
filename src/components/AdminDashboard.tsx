@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Users, CreditCard, Clock, GraduationCap, Search, Download, FileText, CheckCircle, XCircle, Eye, Trash2, X, Bell, Newspaper } from 'lucide-react';
+import { Users, CreditCard, Clock, GraduationCap, Search, Download, FileText, CheckCircle, XCircle, Eye, Trash2, X, Bell, Newspaper, Camera, Upload, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -31,19 +31,28 @@ interface Reminder {
 }
 
 export const AdminDashboard = () => {
+  interface GalleryItem {
+    id: string;
+    image_url: string;
+    created_at: string;
+  }
+
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterGen, setFilterGen] = useState('All');
   const [selectedReg, setSelectedReg] = useState<Registration | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'registrations' | 'feed' | 'reminders'>('registrations');
+  const [activeTab, setActiveTab] = useState<'registrations' | 'feed' | 'reminders' | 'gallery'>('registrations');
 
   // States for new entries
   const [newPost, setNewPost] = useState('');
   const [newReminder, setNewReminder] = useState({ message: '', date: '' });
+  const [newGalleryImage, setNewGalleryImage] = useState<File | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const fetchRegistrations = async () => {
     setLoading(true);
@@ -64,6 +73,7 @@ export const AdminDashboard = () => {
     fetchRegistrations();
     fetchPosts();
     fetchReminders();
+    fetchGallery();
   }, []);
 
   const fetchPosts = async () => {
@@ -74,6 +84,11 @@ export const AdminDashboard = () => {
   const fetchReminders = async () => {
     const { data } = await supabase.from('reminders').select('*').order('created_at', { ascending: false });
     setReminders(data || []);
+  };
+
+  const fetchGallery = async () => {
+    const { data } = await supabase.from('gallery').select('*').order('created_at', { ascending: false });
+    setGallery(data || []);
   };
 
   const savePost = async () => {
@@ -89,7 +104,45 @@ export const AdminDashboard = () => {
   const deletePost = async (id: string) => {
     if (!confirm('Tem certeza que deseja apagar esta publicação?')) return;
     await supabase.from('posts').delete().eq('id', id);
-    fetchPosts();
+    fetchPosts(); // Corrected from fetchReminders()
+  };
+
+  const saveGalleryImage = async () => {
+    if (!newGalleryImage) return;
+    setUploadingImage(true);
+    try {
+      const fileExt = newGalleryImage.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('gallery')
+        .upload(fileName, newGalleryImage);
+
+      if (uploadError) throw uploadError;
+
+      const { error: dbError } = await supabase.from('gallery').insert([{
+        image_url: uploadData.path
+      }]);
+
+      if (dbError) throw dbError;
+
+      setNewGalleryImage(null);
+      fetchGallery();
+    } catch (error: any) {
+      alert('Erro ao carregar imagem: ' + error.message);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const deleteGalleryImage = async (id: string, path: string) => {
+    if (!confirm('Tem certeza que deseja apagar esta imagem?')) return;
+    try {
+      await supabase.storage.from('gallery').remove([path]);
+      await supabase.from('gallery').delete().eq('id', id);
+      fetchGallery();
+    } catch (error: any) {
+      alert('Erro ao apagar imagem: ' + error.message);
+    }
   };
 
   const saveReminder = async () => {
@@ -290,6 +343,13 @@ export const AdminDashboard = () => {
         >
           <Bell className="w-5 h-5" />
           Lembretes
+        </button>
+        <button
+          onClick={() => setActiveTab('gallery')}
+          className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${activeTab === 'gallery' ? 'bg-primary text-white shadow-lg shadow-primary/30' : 'bg-white dark:bg-slate-900 text-slate-500 hover:bg-slate-50'}`}
+        >
+          <Camera className="w-5 h-5" />
+          Galeria
         </button>
       </div>
 
@@ -551,6 +611,69 @@ export const AdminDashboard = () => {
                     <button
                       onClick={() => deleteReminder(rem.id)}
                       className="text-red-500 hover:bg-red-50 p-2 rounded-lg"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'gallery' && (
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm text-center">
+            <h2 className="text-xl font-bold mb-2">Gestão de Galeria</h2>
+            <p className="text-sm text-slate-500 mb-6 font-medium uppercase tracking-widest opacity-60">Adicione imagens de eventos passados para o carrossel</p>
+
+            <div className="max-w-md mx-auto">
+              <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-slate-300 border-dashed rounded-xl cursor-pointer bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  <Upload className="w-10 h-10 text-slate-400 mb-2" />
+                  <p className="text-sm text-slate-500 font-semibold italic">
+                    {newGalleryImage ? newGalleryImage.name : 'Clique para selecionar uma imagem'}
+                  </p>
+                </div>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={(e) => setNewGalleryImage(e.target.files?.[0] || null)}
+                />
+              </label>
+
+              <button
+                disabled={!newGalleryImage || uploadingImage}
+                onClick={saveGalleryImage}
+                className="mt-6 w-full bg-primary text-white px-6 py-3 rounded-lg font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {uploadingImage ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" />}
+                Carregar para o Evento
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+              <h2 className="text-xl font-bold">Imagens Ativas ({gallery.length})</h2>
+              <div className="size-8 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold">{gallery.length}</div>
+            </div>
+            <div className="p-6 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {gallery.length === 0 ? (
+                <div className="col-span-full py-12 text-center text-slate-400 italic font-medium">Nenhuma imagem na galeria ainda.</div>
+              ) : gallery.map(item => (
+                <div key={item.id} className="relative group aspect-square rounded-xl overflow-hidden bg-slate-100 border border-slate-200 dark:border-slate-800">
+                  <img
+                    src={getFileUrl('gallery', item.image_url) || ''}
+                    alt="Evento"
+                    className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-500"
+                  />
+                  <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <button
+                      onClick={() => deleteGalleryImage(item.id, item.image_url)}
+                      className="bg-red-500 text-white p-3 rounded-full hover:bg-red-600 transition-all hover:scale-110 active:scale-90 shadow-lg"
                     >
                       <Trash2 className="w-5 h-5" />
                     </button>
