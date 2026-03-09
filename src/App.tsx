@@ -6,6 +6,7 @@ import { PaymentInfo } from './components/PaymentInfo';
 import { AdminDashboard } from './components/AdminDashboard';
 import { LoginForm } from './components/LoginForm';
 import itelLogo from './assets/itel_logo.png';
+import bannerBalloons from './assets/banner_balloons.png';
 
 export default function App() {
   const [view, setView] = useState<'registration' | 'admin'>('registration');
@@ -39,9 +40,8 @@ export default function App() {
             <div className="absolute inset-0 opacity-40">
               <img
                 className="w-full h-full object-cover"
-                src="https://picsum.photos/seed/itel/1920/1080"
-                alt="ITEL Campus"
-                referrerPolicy="no-referrer"
+                src={bannerBalloons}
+                alt="Banner de Balões Azuis"
               />
             </div>
             <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent"></div>
