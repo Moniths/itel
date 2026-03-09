@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Users, CreditCard, Clock, GraduationCap, Search, Download, FileText, CheckCircle, XCircle, Eye, Trash2, X } from 'lucide-react';
+import { Users, CreditCard, Clock, GraduationCap, Search, Download, FileText, CheckCircle, XCircle, Eye, Trash2, X, Bell, Newspaper } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 interface Registration {
   id: string;
@@ -15,17 +17,33 @@ interface Registration {
   created_at: string;
 }
 
+interface Post {
+  id: string;
+  content: string;
+  created_at: string;
+}
+
+interface Reminder {
+  id: string;
+  message: string;
+  remind_at: string;
+  created_at: string;
+}
+
 export const AdminDashboard = () => {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterGen, setFilterGen] = useState('All');
   const [selectedReg, setSelectedReg] = useState<Registration | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'registrations' | 'feed' | 'reminders'>('registrations');
 
-  useEffect(() => {
-    fetchRegistrations();
-  }, []);
+  // States for new entries
+  const [newPost, setNewPost] = useState('');
+  const [newReminder, setNewReminder] = useState({ message: '', date: '' });
 
   const fetchRegistrations = async () => {
     setLoading(true);
@@ -42,13 +60,90 @@ export const AdminDashboard = () => {
     setLoading(false);
   };
 
+  useEffect(() => {
+    fetchRegistrations();
+    fetchPosts();
+    fetchReminders();
+  }, []);
+
+  const fetchPosts = async () => {
+    const { data } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
+    setPosts(data || []);
+  };
+
+  const fetchReminders = async () => {
+    const { data } = await supabase.from('reminders').select('*').order('created_at', { ascending: false });
+    setReminders(data || []);
+  };
+
+  const savePost = async () => {
+    if (!newPost.trim()) return;
+    const { error } = await supabase.from('posts').insert([{ content: newPost }]);
+    if (error) alert(error.message);
+    else {
+      setNewPost('');
+      fetchPosts();
+    }
+  };
+
+  const deletePost = async (id: string) => {
+    if (!confirm('Tem certeza que deseja apagar esta publicação?')) return;
+    await supabase.from('posts').delete().eq('id', id);
+    fetchPosts();
+  };
+
+  const saveReminder = async () => {
+    if (!newReminder.message.trim() || !newReminder.date) return;
+    const { error } = await supabase.from('reminders').insert([{
+      message: newReminder.message,
+      remind_at: new Date(newReminder.date).toISOString()
+    }]);
+    if (error) alert(error.message);
+    else {
+      setNewReminder({ message: '', date: '' });
+      fetchReminders();
+    }
+  };
+
+  const deleteReminder = async (id: string) => {
+    if (!confirm('Tem certeza que deseja apagar este lembrete?')) return;
+    await supabase.from('reminders').delete().eq('id', id);
+    fetchReminders();
+  };
+
+  const sendBroadcastSMS = async (message: string) => {
+    const paidRegistrations = registrations.filter(r => r.status === 'paid');
+    if (paidRegistrations.length === 0) {
+      alert('Não há participantes com status Pago para enviar SMS.');
+      return;
+    }
+
+    if (!confirm(`Deseja enviar este SMS para ${paidRegistrations.length} participantes pagos?`)) return;
+
+    let successCount = 0;
+    for (const reg of paidRegistrations) {
+      const authId = '627915097680715652';
+      const secretKey = 'r0HwbKF80OiS0yd2AJs8Jwi4kjJhbK7Rl5TYZeGvTQ0KmZzWWPJda9cbD13j2uBCJAO8RmtnB9H4dwJCx96SvL3j9MWKS5aRCNzU';
+      const from = 'ITEListas';
+      const cleanPhone = reg.phone.replace(/\s/g, '');
+      const url = `https://app.smshubangola.com/api/sendsms?to=${cleanPhone}&message=${encodeURIComponent(message)}&auth_id=${authId}&secret_key=${secretKey}&from=${from}`;
+
+      try {
+        await fetch(url);
+        successCount++;
+      } catch (e) {
+        console.error('Error sending broadcast SMS to', reg.phone, e);
+      }
+    }
+    alert(`Broadcast finalizado. ${successCount} SMS enviados com sucesso.`);
+  };
+
   const sendSMS = async (name: string, phone: string) => {
     const authId = '627915097680715652';
     const secretKey = 'r0HwbKF80OiS0yd2AJs8Jwi4kjJhbK7Rl5TYZeGvTQ0KmZzWWPJda9cbD13j2uBCJAO8RmtnB9H4dwJCx96SvL3j9MWKS5aRCNzU';
     const from = 'ITEListas';
     const message = `Ola ${name}, a sua inscricao para o Evento Todas as Geracoes ITEL foi confirmada com sucesso. Bem-vindo!`;
 
-    // Cleaning phone number (removing spaces)
     const cleanPhone = phone.replace(/\s/g, '');
 
     const url = `https://app.smshubangola.com/api/sendsms?to=${cleanPhone}&message=${encodeURIComponent(message)}&auth_id=${authId}&secret_key=${secretKey}&from=${from}`;
@@ -99,6 +194,52 @@ export const AdminDashboard = () => {
     }
   };
 
+  const exportToCSV = () => {
+    const headers = ['Nome', 'Telefone', 'Geração', 'Ano Ingresso', 'Ano Saída', 'Estado', 'Data Inscrição'];
+    const data = filteredRegistrations.map(reg => [
+      reg.name,
+      reg.phone,
+      reg.generation,
+      reg.entry_year,
+      reg.exit_year,
+      reg.status === 'paid' ? 'Pago' : reg.status === 'pending' ? 'Pendente' : 'Não Pago',
+      new Date(reg.created_at).toLocaleDateString()
+    ]);
+
+    const csvContent = [headers, ...data].map(e => e.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `inscritos_itel_2026_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF() as any;
+    doc.text('Lista de Inscritos - Evento Todas as Gerações ITEL 2026', 14, 15);
+
+    const tableColumn = ['Nome', 'Telefone', 'Geração', 'Estado', 'Data'];
+    const tableRows = filteredRegistrations.map(reg => [
+      reg.name,
+      reg.phone,
+      reg.generation,
+      reg.status === 'paid' ? 'Pago' : reg.status === 'pending' ? 'Pendente' : 'Não Pago',
+      new Date(reg.created_at).toLocaleDateString()
+    ]);
+
+    doc.autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      startY: 20,
+    });
+
+    doc.save(`inscritos_itel_2026_${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
+
   const getFileUrl = (bucket: string, path: string) => {
     if (!path) return null;
     const { data } = supabase.storage.from(bucket).getPublicUrl(path);
@@ -128,140 +269,298 @@ export const AdminDashboard = () => {
         <StatCard icon={<GraduationCap />} label="Gerações Ativas" value={stats.generations} trend="Ativo" color="purple" />
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-200 dark:border-slate-800">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-bold">Gestão de Participantes</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Visualize e gira todas as inscrições do evento</p>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <div className="relative flex-1 md:min-w-[300px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-                <input
-                  className="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-lg focus:ring-2 focus:ring-primary text-sm"
-                  placeholder="Pesquisar por nome ou geração (ex: G19)..."
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+      <div className="flex gap-4 mb-6">
+        <button
+          onClick={() => setActiveTab('registrations')}
+          className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${activeTab === 'registrations' ? 'bg-primary text-white shadow-lg shadow-primary/30' : 'bg-white dark:bg-slate-900 text-slate-500 hover:bg-slate-50'}`}
+        >
+          <Users className="w-5 h-5" />
+          Participantes
+        </button>
+        <button
+          onClick={() => setActiveTab('feed')}
+          className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${activeTab === 'feed' ? 'bg-primary text-white shadow-lg shadow-primary/30' : 'bg-white dark:bg-slate-900 text-slate-500 hover:bg-slate-50'}`}
+        >
+          <Newspaper className="w-5 h-5" />
+          Feed de Notícias
+        </button>
+        <button
+          onClick={() => setActiveTab('reminders')}
+          className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${activeTab === 'reminders' ? 'bg-primary text-white shadow-lg shadow-primary/30' : 'bg-white dark:bg-slate-900 text-slate-500 hover:bg-slate-50'}`}
+        >
+          <Bell className="w-5 h-5" />
+          Lembretes
+        </button>
+      </div>
+
+      {activeTab === 'registrations' && (
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-slate-200 dark:border-slate-800">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-bold">Gestão de Participantes</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Visualize e gira todas as inscrições do evento</p>
               </div>
-              <select
-                className="bg-slate-100 dark:bg-slate-800 border-none rounded-lg focus:ring-2 focus:ring-primary text-sm py-2 pl-3 pr-8"
-                value={filterGen}
-                onChange={(e) => setFilterGen(e.target.value)}
-              >
-                <option value="All">Todas as Gerações</option>
-                {Array.from(new Set(registrations.map(r => r.generation))).sort().map(gen => (
-                  <option key={gen} value={gen}>{gen}</option>
+              <div className="flex flex-wrap gap-3">
+                <div className="relative flex-1 md:min-w-[300px]">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                  <input
+                    className="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-lg focus:ring-2 focus:ring-primary text-sm"
+                    placeholder="Pesquisar por nome ou geração (ex: G19)..."
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <select
+                  className="bg-slate-100 dark:bg-slate-800 border-none rounded-lg focus:ring-2 focus:ring-primary text-sm py-2 pl-3 pr-8"
+                  value={filterGen}
+                  onChange={(e) => setFilterGen(e.target.value)}
+                >
+                  <option value="All">Todas as Gerações</option>
+                  {Array.from(new Set(registrations.map(r => r.generation))).sort().map(gen => (
+                    <option key={gen} value={gen}>{gen}</option>
+                  ))}
+                </select>
+                <div className="flex gap-2">
+                  <button
+                    onClick={exportToCSV}
+                    className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-slate-200 transition-colors"
+                  >
+                    <Download className="w-4 h-4" />
+                    CSV
+                  </button>
+                  <button
+                    onClick={exportToPDF}
+                    className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg font-semibold text-sm hover:bg-primary/90 transition-colors"
+                  >
+                    <FileText className="w-4 h-4" />
+                    PDF
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
+                <tr>
+                  <th className="px-6 py-4">Participante</th>
+                  <th className="px-6 py-4">Geração</th>
+                  <th className="px-6 py-4">Estado</th>
+                  <th className="px-6 py-4">Data de Inscrição</th>
+                  <th className="px-6 py-4 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                {loading ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-10 text-center text-slate-500">A carregar inscrições...</td>
+                  </tr>
+                ) : filteredRegistrations.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-10 text-center text-slate-500">Nenhuma inscrição encontrada.</td>
+                  </tr>
+                ) : filteredRegistrations.map((reg) => (
+                  <tr key={reg.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="size-9 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-xs">
+                          {reg.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sm">{reg.name}</p>
+                          <p className="text-xs text-slate-500">{reg.phone}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      <span className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-slate-700 dark:text-slate-300 font-medium">
+                        {reg.generation}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      <span className={`flex items-center gap-1.5 font-medium ${reg.status === 'paid' ? 'text-green-600' :
+                        reg.status === 'pending' ? 'text-orange-600' : 'text-slate-400'
+                        }`}>
+                        <span className={`size-1.5 rounded-full ${reg.status === 'paid' ? 'bg-green-500' :
+                          reg.status === 'pending' ? 'bg-orange-500' : 'bg-slate-400'
+                          }`}></span>
+                        {reg.status === 'paid' ? 'Pago' : reg.status === 'pending' ? 'Pendente' : 'Não Pago'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-500">
+                      {new Date(reg.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => {
+                            setSelectedReg(reg);
+                            setShowDetailModal(true);
+                          }}
+                          className="inline-flex items-center gap-1.5 text-primary hover:text-primary/80 font-medium text-sm px-2 py-1 rounded-md hover:bg-primary/5 transition-colors"
+                        >
+                          <Eye className="w-4 h-4" />
+                          Detalhes
+                        </button>
+                        <div className="flex gap-1 border-l border-slate-200 dark:border-slate-800 pl-2 ml-1">
+                          {reg.status === 'pending' && (
+                            <>
+                              <button
+                                onClick={() => updateStatus(reg.id, 'paid')}
+                                className="text-green-600 hover:text-green-700 p-1 hover:bg-green-50 rounded"
+                                title="Marcar como Pago"
+                              >
+                                <CheckCircle className="w-5 h-5" />
+                              </button>
+                              <button
+                                onClick={() => updateStatus(reg.id, 'unpaid')}
+                                className="text-orange-600 hover:text-orange-700 p-1 hover:bg-orange-50 rounded"
+                                title="Marcar como Não Pago"
+                              >
+                                <XCircle className="w-5 h-5" />
+                              </button>
+                            </>
+                          )}
+                          <button
+                            onClick={() => deleteRegistration(reg.id)}
+                            className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded"
+                            title="Apagar Registo"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
                 ))}
-              </select>
-              <button className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg font-semibold text-sm hover:bg-primary/90 transition-colors">
-                <Download className="w-4 h-4" />
-                Exportar CSV
-              </button>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'feed' && (
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <h2 className="text-xl font-bold mb-4">Criar Nova Publicação</h2>
+            <textarea
+              className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border-none focus:ring-2 focus:ring-primary min-h-[120px]"
+              placeholder="Escreva o conteúdo da publicação que aparecerá no feed da página inicial..."
+              value={newPost}
+              onChange={(e) => setNewPost(e.target.value)}
+            />
+            <button
+              onClick={savePost}
+              className="mt-4 bg-primary text-white px-8 py-3 rounded-lg font-bold hover:bg-primary/90 transition-colors"
+            >
+              Publicar no Feed
+            </button>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-800">
+              <h2 className="text-xl font-bold">Publicações Ativas</h2>
+            </div>
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+              {posts.length === 0 ? (
+                <p className="p-10 text-center text-slate-500">Nenhuma publicação encontrada.</p>
+              ) : posts.map(post => (
+                <div key={post.id} className="p-6 flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <p className="text-xs font-bold text-primary uppercase mb-1">{new Date(post.created_at).toLocaleString()}</p>
+                    <p className="text-slate-700 dark:text-slate-300">{post.content}</p>
+                  </div>
+                  <button
+                    onClick={() => deletePost(post.id)}
+                    className="text-red-500 hover:bg-red-50 p-2 rounded-lg"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         </div>
+      )}
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
-              <tr>
-                <th className="px-6 py-4">Participante</th>
-                <th className="px-6 py-4">Geração</th>
-                <th className="px-6 py-4">Estado</th>
-                <th className="px-6 py-4">Data de Inscrição</th>
-                <th className="px-6 py-4 text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-              {loading ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-slate-500">A carregar inscrições...</td>
-                </tr>
-              ) : filteredRegistrations.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-slate-500">Nenhuma inscrição encontrada.</td>
-                </tr>
-              ) : filteredRegistrations.map((reg) => (
-                <tr key={reg.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="size-9 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-xs">
-                        {reg.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-sm">{reg.name}</p>
-                        <p className="text-xs text-slate-500">{reg.phone}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    <span className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-slate-700 dark:text-slate-300 font-medium">
-                      {reg.generation}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    <span className={`flex items-center gap-1.5 font-medium ${reg.status === 'paid' ? 'text-green-600' :
-                      reg.status === 'pending' ? 'text-orange-600' : 'text-slate-400'
-                      }`}>
-                      <span className={`size-1.5 rounded-full ${reg.status === 'paid' ? 'bg-green-500' :
-                        reg.status === 'pending' ? 'bg-orange-500' : 'bg-slate-400'
-                        }`}></span>
-                      {reg.status === 'paid' ? 'Pago' : reg.status === 'pending' ? 'Pendente' : 'Não Pago'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-slate-500">
-                    {new Date(reg.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => {
-                          setSelectedReg(reg);
-                          setShowDetailModal(true);
-                        }}
-                        className="inline-flex items-center gap-1.5 text-primary hover:text-primary/80 font-medium text-sm px-2 py-1 rounded-md hover:bg-primary/5 transition-colors"
-                      >
-                        <Eye className="w-4 h-4" />
-                        Detalhes
-                      </button>
-                      <div className="flex gap-1 border-l border-slate-200 dark:border-slate-800 pl-2 ml-1">
-                        {reg.status === 'pending' && (
-                          <>
-                            <button
-                              onClick={() => updateStatus(reg.id, 'paid')}
-                              className="text-green-600 hover:text-green-700 p-1 hover:bg-green-50 rounded"
-                              title="Marcar como Pago"
-                            >
-                              <CheckCircle className="w-5 h-5" />
-                            </button>
-                            <button
-                              onClick={() => updateStatus(reg.id, 'unpaid')}
-                              className="text-orange-600 hover:text-orange-700 p-1 hover:bg-orange-50 rounded"
-                              title="Marcar como Não Pago"
-                            >
-                              <XCircle className="w-5 h-5" />
-                            </button>
-                          </>
-                        )}
-                        <button
-                          onClick={() => deleteRegistration(reg.id)}
-                          className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded"
-                          title="Apagar Registo"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
+      {activeTab === 'reminders' && (
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <h2 className="text-xl font-bold mb-4">Criar Lembrete / Alerta</h2>
+            <div className="grid gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Data do Evento/Alerta</label>
+                <input
+                  type="datetime-local"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-lg focus:ring-2 focus:ring-primary"
+                  value={newReminder.date}
+                  onChange={(e) => setNewReminder({ ...newReminder, date: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Mensagem do Alerta</label>
+                <textarea
+                  className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border-none focus:ring-2 focus:ring-primary min-h-[100px]"
+                  placeholder="Ex: Faltam 2 dias para o grande evento! Garanta que tem o seu código QR pronto."
+                  value={newReminder.message}
+                  onChange={(e) => setNewReminder({ ...newReminder, message: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="flex gap-4 mt-6">
+              <button
+                onClick={saveReminder}
+                className="bg-slate-900 dark:bg-white dark:text-slate-900 text-white px-6 py-3 rounded-lg font-bold hover:opacity-90 transition-colors"
+              >
+                Guardar Lembrete
+              </button>
+              <button
+                onClick={() => sendBroadcastSMS(newReminder.message)}
+                className="bg-primary text-white px-6 py-3 rounded-lg font-bold hover:bg-primary/90 transition-colors flex items-center gap-2"
+              >
+                <Bell className="w-5 h-5" />
+                Enviar SMS para Todos os Pagos
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-800">
+              <h2 className="text-xl font-bold">Histórico de Lembretes</h2>
+            </div>
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+              {reminders.length === 0 ? (
+                <p className="p-10 text-center text-slate-500">Nenhum lembrete registado.</p>
+              ) : reminders.map(rem => (
+                <div key={rem.id} className="p-6 flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <p className="text-xs font-bold text-slate-400 uppercase mb-1">DATA: {new Date(rem.remind_at).toLocaleString()}</p>
+                    <p className="text-slate-700 dark:text-slate-300">{rem.message}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => sendBroadcastSMS(rem.message)}
+                      className="text-primary hover:bg-primary/5 p-2 rounded-lg"
+                      title="Reenviar SMS"
+                    >
+                      <Bell className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => deleteReminder(rem.id)}
+                      className="text-red-500 hover:bg-red-50 p-2 rounded-lg"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Detail Modal */}
       {showDetailModal && selectedReg && (

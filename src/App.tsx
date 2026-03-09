@@ -5,6 +5,7 @@ import { RegistrationForm } from './components/RegistrationForm';
 import { PaymentInfo } from './components/PaymentInfo';
 import { AdminDashboard } from './components/AdminDashboard';
 import { LoginForm } from './components/LoginForm';
+import { NewsFeed } from './components/NewsFeed';
 import { supabase } from './lib/supabase';
 import itelLogo from './assets/itel_logo.png';
 import bannerBalloons from './assets/banner_balloons.png';
@@ -87,6 +88,7 @@ export default function App() {
             </div>
           </div>
 
+          <NewsFeed />
           <PaymentInfo />
           <RegistrationForm />
         </div>
