@@ -203,7 +203,7 @@ export const AdminDashboard = () => {
       reg.entry_year,
       reg.exit_year,
       reg.status === 'paid' ? 'Pago' : reg.status === 'pending' ? 'Pendente' : 'Não Pago',
-      new Date(reg.created_at).toLocaleDateString()
+      new Date(reg.created_at).toLocaleString()
     ]);
 
     const csvContent = [headers, ...data].map(e => e.join(',')).join('\n');
@@ -228,7 +228,7 @@ export const AdminDashboard = () => {
       reg.phone,
       reg.generation,
       reg.status === 'paid' ? 'Pago' : reg.status === 'pending' ? 'Pendente' : 'Não Pago',
-      new Date(reg.created_at).toLocaleDateString()
+      new Date(reg.created_at).toLocaleString()
     ]);
 
     doc.autoTable({
@@ -391,7 +391,7 @@ export const AdminDashboard = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-500">
-                      {new Date(reg.created_at).toLocaleDateString()}
+                      {new Date(reg.created_at).toLocaleString()}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">

@@ -47,7 +47,7 @@ export const NewsFeed = () => {
                         <div className="flex items-center gap-2 text-primary mb-3">
                             <Calendar className="w-4 h-4" />
                             <span className="text-xs font-bold uppercase tracking-wider">
-                                {new Date(post.created_at).toLocaleDateString()}
+                                {new Date(post.created_at).toLocaleString()}
                             </span>
                         </div>
                         <p className="text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
