@@ -127,7 +127,7 @@ export const RegistrationForm = () => {
               <input
                 required
                 className="w-full rounded-lg border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:border-primary focus:ring-primary h-12"
-                max="2024" min="1970"
+                max="2026" min="1970"
                 placeholder="Ex: 2015"
                 type="number"
                 value={formData.ano_ingresso}

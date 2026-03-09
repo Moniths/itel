@@ -22,7 +22,7 @@ export const Header = ({ onAdminClick, isAdmin }: HeaderProps) => {
           <h2 className="text-slate-900 dark:text-white text-lg font-bold leading-tight tracking-tight">
             {isAdmin ? 'ITEL Admin' : 'ITEL GERAÇÕES Eventos'}
           </h2>
-          {isAdmin && <p className="text-xs text-slate-500 dark:text-slate-400">Todas as Gerações 2024</p>}
+          {isAdmin && <p className="text-xs text-slate-500 dark:text-slate-400">Todas as Gerações 2026</p>}
         </div>
       </div>
       <div className="flex items-center gap-4">

@@ -59,7 +59,7 @@ export const Footer = () => {
           </div>
         </div>
         <div className="mt-12 pt-8 border-t border-slate-200 dark:border-slate-800 text-center text-xs text-slate-400">
-          <p>© 2024 ITEL - Instituto de Telecomunicações. Todos os direitos reservados.</p>
+          <p>© 2026 ITEL - Instituto de Telecomunicações. Todos os direitos reservados.</p>
         </div>
       </div>
     </footer>
