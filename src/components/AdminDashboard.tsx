@@ -564,12 +564,21 @@ export const AdminDashboard = () => {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Mensagem do Alerta</label>
-                  <textarea
-                    className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border-none focus:ring-2 focus:ring-primary min-h-[100px]"
-                    placeholder="Ex: Faltam 2 dias para o grande evento! Garanta que tem o seu código QR pronto."
-                    value={newReminder.message}
-                    onChange={(e) => setNewReminder({ ...newReminder, message: e.target.value })}
-                  />
+                  <div className="relative">
+                    <textarea
+                      className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border-none focus:ring-2 focus:ring-primary min-h-[100px] pr-4 pb-8"
+                      placeholder="Ex: Faltam 2 dias para o grande evento! Garanta que tem o seu código QR pronto."
+                      value={newReminder.message}
+                      maxLength={160}
+                      onChange={(e) => setNewReminder({ ...newReminder, message: e.target.value })}
+                    />
+                    <div className="absolute bottom-3 right-4 text-[10px] font-bold tracking-widest text-slate-400">
+                      <span className={newReminder.message.length >= 160 ? 'text-red-500' : ''}>
+                        {newReminder.message.length}
+                      </span>
+                      /160 Caracteres
+                    </div>
+                  </div>
                 </div>
               </div>
               <div className="flex gap-4 mt-6">
