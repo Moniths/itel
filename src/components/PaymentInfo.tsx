@@ -2,6 +2,8 @@ import React from 'react';
 import { CreditCard, Copy, Check } from 'lucide-react';
 import { useState } from 'react';
 
+import { GalleryCarousel } from './GalleryCarousel';
+
 export const PaymentInfo = () => {
   const [copied, setCopied] = useState(false);
   const iban = "AO06 0006 0000 296689623014 5";
@@ -18,8 +20,8 @@ export const PaymentInfo = () => {
         <div className="h-8 w-1 bg-primary rounded-full"></div>
         <h2 className="text-slate-900 dark:text-white text-2xl md:text-3xl font-bold tracking-tight">Informações de Pagamento</h2>
       </div>
-      <div className="grid md:grid-cols-2 gap-6">
-        <div className="flex flex-col justify-between gap-6 rounded-xl bg-white dark:bg-slate-900 p-8 shadow-sm border border-primary/10">
+      <div className="grid md:grid-cols-2 gap-8 items-center">
+        <div className="flex flex-col justify-between gap-6 rounded-xl bg-white dark:bg-slate-900 p-8 shadow-sm border border-primary/10 order-2 md:order-1">
           <div className="flex flex-col gap-6">
             <div className="flex items-center gap-4">
               <div className="bg-primary/10 p-3 rounded-full">
@@ -56,14 +58,8 @@ export const PaymentInfo = () => {
             <span>{copied ? 'Copiado!' : 'Copiar IBAN'}</span>
           </button>
         </div>
-        <div className="rounded-xl overflow-hidden relative min-h-[300px] shadow-lg">
-          <img
-            className="absolute inset-0 w-full h-full object-cover"
-            src="https://picsum.photos/seed/finance/800/600"
-            alt="Finance concept"
-            referrerPolicy="no-referrer"
-          />
-          <div className="absolute inset-0 bg-primary/20 mix-blend-multiply"></div>
+        <div className="order-1 md:order-2">
+          <GalleryCarousel />
         </div>
       </div>
     </section>
