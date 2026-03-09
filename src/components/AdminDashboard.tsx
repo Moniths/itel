@@ -42,7 +42,29 @@ export const AdminDashboard = () => {
     setLoading(false);
   };
 
+  const sendSMS = async (name: string, phone: string) => {
+    const authId = '627915097680715652';
+    const secretKey = 'r0HwbKF80OiS0yd2AJs8Jwi4kjJhbK7Rl5TYZeGvTQ0KmZzWWPJda9cbD13j2uBCJAO8RmtnB9H4dwJCx96SvL3j9MWKS5aRCNzU';
+    const from = 'ITEListas';
+    const message = `Ola ${name}, a sua inscricao para o Evento Todas as Geracoes ITEL foi confirmada com sucesso. Bem-vindo!`;
+
+    // Cleaning phone number (removing spaces)
+    const cleanPhone = phone.replace(/\s/g, '');
+
+    const url = `https://app.smshubangola.com/api/sendsms?to=${cleanPhone}&message=${encodeURIComponent(message)}&auth_id=${authId}&secret_key=${secretKey}&from=${from}`;
+
+    try {
+      const response = await fetch(url);
+      const result = await response.json();
+      console.log('SMS Hub Response:', result);
+    } catch (error) {
+      console.error('Error sending SMS:', error);
+    }
+  };
+
   const updateStatus = async (id: string, status: 'paid' | 'unpaid') => {
+    const registration = registrations.find(r => r.id === id);
+
     const { error } = await supabase
       .from('registrations')
       .update({ status })
@@ -51,6 +73,9 @@ export const AdminDashboard = () => {
     if (error) {
       console.error('Error updating status:', error);
     } else {
+      if (status === 'paid' && registration) {
+        sendSMS(registration.name, registration.phone);
+      }
       fetchRegistrations();
     }
   };
