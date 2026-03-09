@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 export const PaymentInfo = () => {
   const [copied, setCopied] = useState(false);
-  const iban = "AO06 0006 0000 2966 8962 3014 5";
+  const iban = "AO06 0006 0000 296689623014 5";
 
   const copyIban = () => {
     navigator.clipboard.writeText(iban.replace(/\s/g, ''));
