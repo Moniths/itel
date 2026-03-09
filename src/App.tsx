@@ -5,6 +5,7 @@ import { RegistrationForm } from './components/RegistrationForm';
 import { PaymentInfo } from './components/PaymentInfo';
 import { AdminDashboard } from './components/AdminDashboard';
 import { LoginForm } from './components/LoginForm';
+import { supabase } from './lib/supabase';
 import itelLogo from './assets/itel_logo.png';
 import bannerBalloons from './assets/banner_balloons.png';
 
@@ -13,24 +14,31 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   React.useEffect(() => {
-    import('./lib/supabase').then(({ supabase }) => {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) setIsAuthenticated(true);
-      });
-
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-        setIsAuthenticated(!!session);
-      });
-
-      return () => subscription.unsubscribe();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setIsAuthenticated(true);
     });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(!!session);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
+
+  const handleAdminToggle = async () => {
+    if (view === 'admin') {
+      await supabase.auth.signOut();
+      setView('registration');
+    } else {
+      setView('admin');
+    }
+  };
 
   return (
     <div className="bg-slate-50 dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 min-h-screen flex flex-col transition-colors duration-300">
       <Header
         isAdmin={view === 'admin'}
-        onAdminClick={() => setView(view === 'admin' ? 'registration' : 'admin')}
+        onAdminClick={handleAdminToggle}
       />
 
       {view === 'registration' ? (
