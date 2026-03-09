@@ -97,25 +97,25 @@ export const AdminDashboard = () => {
   return (
     <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-8">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard icon={<Users />} label="Total Registrants" value={stats.total} trend="+12%" color="primary" />
-        <StatCard icon={<CreditCard />} label="Total Paid" value={stats.paid} trend="+8%" color="green" />
-        <StatCard icon={<Clock />} label="Pending Proofs" value={stats.pending} trend="Pending" color="orange" />
-        <StatCard icon={<GraduationCap />} label="Active Generations" value={stats.generations} trend="Active" color="purple" />
+        <StatCard icon={<Users />} label="Total de Inscritos" value={stats.total} trend="+12%" color="primary" />
+        <StatCard icon={<CreditCard />} label="Total Pagos" value={stats.paid} trend="+8%" color="green" />
+        <StatCard icon={<Clock />} label="Comprovativos Pendentes" value={stats.pending} trend="Pendente" color="orange" />
+        <StatCard icon={<GraduationCap />} label="Gerações Ativas" value={stats.generations} trend="Ativo" color="purple" />
       </div>
 
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-slate-200 dark:border-slate-800">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h2 className="text-xl font-bold">Participant Management</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400">View and manage all event registrations</p>
+              <h2 className="text-xl font-bold">Gestão de Participantes</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Visualize e gira todas as inscrições do evento</p>
             </div>
             <div className="flex flex-wrap gap-3">
               <div className="relative flex-1 md:min-w-[300px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
                 <input
                   className="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-lg focus:ring-2 focus:ring-primary text-sm"
-                  placeholder="Search by name or generation (e.g. G19)..."
+                  placeholder="Pesquisar por nome ou geração (ex: G19)..."
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -126,14 +126,14 @@ export const AdminDashboard = () => {
                 value={filterGen}
                 onChange={(e) => setFilterGen(e.target.value)}
               >
-                <option value="All">All Generations</option>
+                <option value="All">Todas as Gerações</option>
                 {Array.from(new Set(registrations.map(r => r.generation))).sort().map(gen => (
                   <option key={gen} value={gen}>{gen}</option>
                 ))}
               </select>
               <button className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg font-semibold text-sm hover:bg-primary/90 transition-colors">
                 <Download className="w-4 h-4" />
-                Export CSV
+                Exportar CSV
               </button>
             </div>
           </div>
@@ -143,21 +143,21 @@ export const AdminDashboard = () => {
           <table className="w-full text-left">
             <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
               <tr>
-                <th className="px-6 py-4">Participant</th>
-                <th className="px-6 py-4">Generation</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Registration Date</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+                <th className="px-6 py-4">Participante</th>
+                <th className="px-6 py-4">Geração</th>
+                <th className="px-6 py-4">Estado</th>
+                <th className="px-6 py-4">Data de Inscrição</th>
+                <th className="px-6 py-4 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-slate-500">Loading registrations...</td>
+                  <td colSpan={5} className="px-6 py-10 text-center text-slate-500">A carregar inscrições...</td>
                 </tr>
               ) : filteredRegistrations.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-slate-500">No registrations found.</td>
+                  <td colSpan={5} className="px-6 py-10 text-center text-slate-500">Nenhuma inscrição encontrada.</td>
                 </tr>
               ) : filteredRegistrations.map((reg) => (
                 <tr key={reg.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
@@ -179,12 +179,12 @@ export const AdminDashboard = () => {
                   </td>
                   <td className="px-6 py-4 text-sm">
                     <span className={`flex items-center gap-1.5 font-medium ${reg.status === 'paid' ? 'text-green-600' :
-                        reg.status === 'pending' ? 'text-orange-600' : 'text-slate-400'
+                      reg.status === 'pending' ? 'text-orange-600' : 'text-slate-400'
                       }`}>
                       <span className={`size-1.5 rounded-full ${reg.status === 'paid' ? 'bg-green-500' :
-                          reg.status === 'pending' ? 'bg-orange-500' : 'bg-slate-400'
+                        reg.status === 'pending' ? 'bg-orange-500' : 'bg-slate-400'
                         }`}></span>
-                      {reg.status.charAt(0).toUpperCase() + reg.status.slice(1)}
+                      {reg.status === 'paid' ? 'Pago' : reg.status === 'pending' ? 'Pendente' : 'Não Pago'}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-500">
@@ -282,7 +282,7 @@ export const AdminDashboard = () => {
                   <div className="space-y-1">
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Status</p>
                     <p className={`font-bold ${selectedReg.status === 'paid' ? 'text-green-500' :
-                        selectedReg.status === 'pending' ? 'text-orange-500' : 'text-red-500'
+                      selectedReg.status === 'pending' ? 'text-orange-500' : 'text-red-500'
                       }`}>
                       {selectedReg.status.toUpperCase()}
                     </p>
