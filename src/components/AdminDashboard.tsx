@@ -248,18 +248,20 @@ export const AdminDashboard = () => {
   };
 
   const exportToCSV = () => {
-    const headers = ['Nome', 'Telefone', 'Geração', 'Ano Ingresso', 'Ano Saída', 'Estado', 'Data Inscrição'];
-    const data = filteredRegistrations.map(reg => [
+    const headers = ['Nome', 'Telefone', 'Geração', 'Ano Ingresso', 'Ano Saída', 'Status', 'Data Inscrição', 'Comprovativo 1', 'Comprovativo 2'];
+    const rows = filteredRegistrations.map(reg => [
       reg.name,
       reg.phone,
       reg.generation,
       reg.entry_year,
       reg.exit_year,
-      reg.status === 'paid' ? 'Pago' : reg.status === 'pending' ? 'Pendente' : 'Não Pago',
-      new Date(reg.created_at).toLocaleString()
+      reg.status,
+      new Date(reg.created_at).toLocaleString(),
+      reg.payment_proof_url,
+      reg.payment_proof_2_url || ''
     ]);
 
-    const csvContent = [headers, ...data].map(e => e.join(',')).join('\n');
+    const csvContent = [headers, ...rows].map(e => e.join(',')).join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -275,19 +277,22 @@ export const AdminDashboard = () => {
     const doc = new jsPDF() as any;
     doc.text('Lista de Inscritos - Evento Todas as Gerações ITEL 2026', 14, 15);
 
-    const tableColumn = ['Nome', 'Telefone', 'Geração', 'Estado', 'Data'];
     const tableRows = filteredRegistrations.map(reg => [
       reg.name,
       reg.phone,
       reg.generation,
-      reg.status === 'paid' ? 'Pago' : reg.status === 'pending' ? 'Pendente' : 'Não Pago',
-      new Date(reg.created_at).toLocaleString()
+      reg.status.toUpperCase(),
+      new Date(reg.created_at).toLocaleString(),
+      reg.payment_proof_url ? 'SIM' : 'NÃO',
+      reg.payment_proof_2_url ? 'SIM' : 'NÃO'
     ]);
 
     doc.autoTable({
-      head: [tableColumn],
+      head: [['Nome', 'Telefone', 'Geração', 'Status', 'Data', 'P1', 'P2']],
       body: tableRows,
-      startY: 20,
+      startY: 25,
+      styles: { fontSize: 8 },
+      headStyles: { fillStyle: 'F', fillColor: [37, 99, 235] }
     });
 
     doc.save(`inscritos_itel_2026_${new Date().toISOString().slice(0, 10)}.pdf`);
@@ -769,8 +774,10 @@ export const AdminDashboard = () => {
                       )}
                     </div>
 
-                    <div className="space-y-2">
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Comprovativo de Pagamento</p>
+                    <div className="space-y-4">
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Comprovativos de Pagamento</p>
+
+                      {/* 1st Proof */}
                       {selectedReg.payment_proof_url ? (
                         <a
                           href={getFileUrl('proofs', selectedReg.payment_proof_url) || '#'}
@@ -778,15 +785,41 @@ export const AdminDashboard = () => {
                           rel="noreferrer"
                           className="flex items-center gap-3 p-4 rounded-xl border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors group"
                         >
-                          <FileText className="w-8 h-8 group-hover:scale-110 transition-transform" />
-                          <div>
-                            <p className="font-bold text-sm">Ver Comprovativo</p>
-                            <p className="text-[10px] opacity-70">Clique para abrir em nova aba</p>
+                          <div className="bg-primary/10 p-2 rounded-lg group-hover:bg-primary/20 transition-colors">
+                            <Upload className="w-5 h-5" />
                           </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold uppercase tracking-tight">1º Comprovativo</p>
+                            <p className="text-[10px] text-primary/60 truncate">Ver Ficheiro</p>
+                          </div>
+                          <ExternalLink className="w-4 h-4 opacity-40 group-hover:opacity-100 transition-opacity" />
                         </a>
                       ) : (
-                        <div className="p-4 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 italic text-sm text-center">
-                          Nenhum comprovativo enviado
+                        <div className="p-4 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-center text-xs text-slate-400 italic">
+                          Aguarda 1º Comprovativo
+                        </div>
+                      )}
+
+                      {/* 2nd Proof */}
+                      {selectedReg.payment_proof_2_url ? (
+                        <a
+                          href={getFileUrl('proofs', selectedReg.payment_proof_2_url) || '#'}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-3 p-4 rounded-xl border border-green-500/20 bg-green-500/5 text-green-600 dark:text-green-400 hover:bg-green-500/10 transition-colors group"
+                        >
+                          <div className="bg-green-500/10 p-2 rounded-lg group-hover:bg-green-500/20 transition-colors">
+                            <Upload className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold uppercase tracking-tight">2º Comprovativo</p>
+                            <p className="text-[10px] text-green-500/60 truncate">Ver Ficheiro</p>
+                          </div>
+                          <ExternalLink className="w-4 h-4 opacity-40 group-hover:opacity-100 transition-opacity" />
+                        </a>
+                      ) : (
+                        <div className="p-4 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-center text-xs text-slate-400 italic">
+                          Aguarda 2º Comprovativo
                         </div>
                       )}
                     </div>
