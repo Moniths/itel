@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Users, CreditCard, Clock, GraduationCap, Search, Download, FileText, CheckCircle, XCircle, Eye, Trash2, X, Bell, Newspaper, Camera, Upload, Loader2 } from 'lucide-react';
+import { Users, CreditCard, Clock, GraduationCap, Search, Download, FileText, CheckCircle, XCircle, Eye, Trash2, X, Bell, Newspaper, Camera, Upload, Loader2, ExternalLink } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -12,6 +12,7 @@ interface Registration {
   exit_year: number;
   photo_url: string;
   payment_proof_url: string;
+  payment_proof_2_url?: string;
   status: 'pending' | 'paid' | 'unpaid';
   generation: string;
   created_at: string;
