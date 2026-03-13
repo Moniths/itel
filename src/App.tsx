@@ -23,8 +23,34 @@ export default function App() {
       setIsAuthenticated(!!session);
     });
 
+    // Inactivity timer for admin session (5 minutes)
+    let timeoutId: number;
+
+    const resetTimer = () => {
+      if (view === 'admin') {
+        window.clearTimeout(timeoutId);
+        timeoutId = window.setTimeout(async () => {
+          await supabase.auth.signOut();
+          setView('registration');
+          alert('Sessão expirada por inatividade.');
+        }, 5 * 60 * 1000); // 5 minutes
+      }
+    };
+
+    if (view === 'admin') {
+      const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+      events.forEach(event => document.addEventListener(event, resetTimer));
+      resetTimer(); // Initial call
+      
+      return () => {
+        subscription.unsubscribe();
+        window.clearTimeout(timeoutId);
+        events.forEach(event => document.removeEventListener(event, resetTimer));
+      };
+    }
+
     return () => subscription.unsubscribe();
-  }, []);
+  }, [view]);
 
   const handleAdminToggle = async () => {
     if (view === 'admin') {

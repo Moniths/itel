@@ -52,7 +52,7 @@ export const AdminDashboard = () => {
   // States for new entries
   const [newPost, setNewPost] = useState('');
   const [newReminder, setNewReminder] = useState({ message: '', date: '' });
-  const [newGalleryImage, setNewGalleryImage] = useState<File | null>(null);
+  const [newGalleryImages, setNewGalleryImages] = useState<File[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
 
   const fetchRegistrations = async () => {
@@ -108,28 +108,31 @@ export const AdminDashboard = () => {
     fetchPosts(); // Corrected from fetchReminders()
   };
 
-  const saveGalleryImage = async () => {
-    if (!newGalleryImage) return;
+  const saveGalleryImages = async () => {
+    if (newGalleryImages.length === 0) return;
     setUploadingImage(true);
     try {
-      const fileExt = newGalleryImage.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('gallery')
-        .upload(fileName, newGalleryImage);
+      for (const image of newGalleryImages) {
+        const fileExt = image.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('gallery')
+          .upload(fileName, image);
 
-      if (uploadError) throw uploadError;
+        if (uploadError) throw uploadError;
 
-      const { error: dbError } = await supabase.from('gallery').insert([{
-        image_url: uploadData.path
-      }]);
+        const { error: dbError } = await supabase.from('gallery').insert([{
+          image_url: uploadData.path
+        }]);
 
-      if (dbError) throw dbError;
+        if (dbError) throw dbError;
+      }
 
-      setNewGalleryImage(null);
+      setNewGalleryImages([]);
       fetchGallery();
+      alert(`${newGalleryImages.length} imagens carregadas com sucesso!`);
     } catch (error: any) {
-      alert('Erro ao carregar imagem: ' + error.message);
+      alert('Erro ao carregar imagens: ' + error.message);
     } finally {
       setUploadingImage(false);
     }
@@ -651,25 +654,31 @@ export const AdminDashboard = () => {
                 <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-slate-300 border-dashed rounded-xl cursor-pointer bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
                     <Upload className="w-10 h-10 text-slate-400 mb-2" />
-                    <p className="text-sm text-slate-500 font-semibold italic">
-                      {newGalleryImage ? newGalleryImage.name : 'Clique para selecionar uma imagem'}
+                    <p className="text-sm text-slate-500 font-semibold italic text-center px-4">
+                      {newGalleryImages.length > 0 
+                        ? `${newGalleryImages.length} imagens selecionadas`
+                        : 'Clique para selecionar imagens'}
                     </p>
                   </div>
                   <input
                     type="file"
                     className="hidden"
                     accept="image/*"
-                    onChange={(e) => setNewGalleryImage(e.target.files?.[0] || null)}
+                    multiple
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      setNewGalleryImages(files);
+                    }}
                   />
                 </label>
 
                 <button
-                  disabled={!newGalleryImage || uploadingImage}
-                  onClick={saveGalleryImage}
+                  disabled={newGalleryImages.length === 0 || uploadingImage}
+                  onClick={saveGalleryImages}
                   className="mt-6 w-full bg-primary text-white px-6 py-3 rounded-lg font-bold hover:bg-primary/90 transition-all shadow-lg shadow-primary/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {uploadingImage ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" />}
-                  Carregar para o Evento
+                  {uploadingImage ? 'A carregar...' : 'Carregar para o Evento'}
                 </button>
               </div>
             </div>
