@@ -86,18 +86,19 @@ export const RegistrationForm = () => {
     // Content
     doc.setTextColor(15, 23, 42); // slate-900
     doc.setFontSize(16);
+    doc.setFont(undefined, 'normal');
     doc.text('Nome:', 30, 80);
-    doc.setFontType('bold');
+    doc.setFont(undefined, 'bold');
     doc.text(originalData.name, 30, 90);
     
-    doc.setFontType('normal');
+    doc.setFont(undefined, 'normal');
     doc.text('Geração:', 30, 110);
-    doc.setFontType('bold');
+    doc.setFont(undefined, 'bold');
     doc.text(originalData.generation, 30, 120);
 
-    doc.setFontType('normal');
+    doc.setFont(undefined, 'normal');
     doc.text('Telefone:', 120, 110);
-    doc.setFontType('bold');
+    doc.setFont(undefined, 'bold');
     doc.text(originalData.phone, 120, 120);
 
     // Validation badge
